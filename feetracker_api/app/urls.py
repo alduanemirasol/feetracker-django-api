@@ -1,0 +1,42 @@
+from django.urls import path
+from .views import ( 
+    StudentTokenRefreshView, 
+    StudentLoginView, 
+    StudentRegisterView, 
+    StudentVerifyOtpView, 
+    StudentResendOtpView, 
+    StudentForgotPasswordRequestView, 
+    StudentForgotPasswordVerifyOtpView, 
+    StudentProfileView,
+    StudentDashboardView,
+    StudentPaymentHistoryView,
+    EditStudentEmailView,
+    ChangeStudentPasswordView,
+    DeleteStudentAccountView,
+    CheckStudentDuplicateView,
+    TreasurerLoginView,
+    TreasurerSetNewPasswordView,
+    TreasurerDashboardView,
+    TreasurerStudentBalanceView
+)
+
+urlpatterns = [
+    path('student/login/', StudentLoginView.as_view(), name='student_login'),
+    path('student/token-refresh/', StudentTokenRefreshView.as_view(), name='student_token_refresh'),
+    path('student/register/', StudentRegisterView.as_view(), name='student_register'),
+    path('student/verify-otp/', StudentVerifyOtpView.as_view(), name='student_verify_otp'),
+    path('student/resend-otp/', StudentResendOtpView.as_view(), name='student_resend_otp'),
+    path('student/forgot-password-request/', StudentForgotPasswordRequestView.as_view(), name='student_forgot_password'),
+    path('student/forgot-password-verify-otp/', StudentForgotPasswordVerifyOtpView.as_view(), name='student_reset_password'),
+    path('student/profile/', StudentProfileView.as_view(), name='student_profile'),
+    path('student/dashboard/', StudentDashboardView.as_view(), name='student-dashboard'),
+    path('student/payment-history/', StudentPaymentHistoryView.as_view(), name='student_payment_history'),
+    path('student/delete-account/', DeleteStudentAccountView.as_view(), name='delete-student-account'),
+    path('student/edit-email/', EditStudentEmailView.as_view(), name='edit_student_email'),
+    path('student/change-password/', ChangeStudentPasswordView.as_view(), name='change_student_password'),
+    path("student/check-duplicate/", CheckStudentDuplicateView.as_view(), name="check-student-duplicate"),
+    path('treasurer/login/', TreasurerLoginView.as_view(), name='treasurer-login'),
+    path('treasurer/set-new-password/', TreasurerSetNewPasswordView.as_view(), name='treasurer-set-new-password'),
+    path("treasurer/dashboard/", TreasurerDashboardView.as_view(), name="treasurer-dashboard"),
+    path('treasurer/student-balance/', TreasurerStudentBalanceView.as_view(), name='student-balance'),
+] 
