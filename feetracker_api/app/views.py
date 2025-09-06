@@ -622,7 +622,6 @@ class TreasurerLoginView(APIView):
         username = serializer.validated_data['username']
         password = serializer.validated_data['password']
 
-        # Get account
         try:
             account = TreasurerAccount.objects.get(username=username)
         except TreasurerAccount.DoesNotExist:
