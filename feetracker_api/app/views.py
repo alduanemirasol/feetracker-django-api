@@ -16,6 +16,7 @@ from django.db.models import Sum, Q
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.mail import send_mail
 from django.utils import timezone
+from django.utils.timezone import now
 from datetime import timedelta
 from decimal import Decimal
 
@@ -29,7 +30,8 @@ from .serializers import (
     StudentForgotPasswordRequestSerializer,   
     StudentForgotPasswordVerifyOtpSerializer,
     TreasurerLoginSerializer,
-    TreasurerSetNewPasswordSerializer
+    TreasurerSetNewPasswordSerializer,
+    TreasurerAddPaymentSerializer
 )
 
 # Student Refresh View
@@ -801,3 +803,55 @@ class TreasurerStudentBalanceView(APIView):
         response_data["data_hash"] = data_hash
 
         return Response(response_data, status=status.HTTP_200_OK)
+    
+# Treasurer Add New Payment
+class TreasurerAddPaymentView(APIView):
+    def post(self, request):
+        serializer = TreasurerAddPaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        student_id = serializer.validated_data['student_id']
+        semester = serializer.validated_data['semester']
+        school_year = serializer.validated_data['school_year']
+        amount_paid = serializer.validated_data['amount_paid']
+
+        # Check if student exists
+        if not StudentRecord.objects.filter(student_id=student_id).exists():
+            return Response(
+                {"detail": "Student ID not found."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Auto-generate receipt_id
+        last_receipt = StudentPaymentHistory.objects.order_by('-receipt_id').first()
+        if last_receipt:
+            try:
+                last_num = int(last_receipt.receipt_id.split('-')[-1])
+            except ValueError:
+                last_num = 0
+            receipt_id = f"RCP-{last_num+1:04d}"
+        else:
+            receipt_id = "RCP-0001"
+
+        # Save payment
+        payment = StudentPaymentHistory.objects.create(
+            receipt_id=receipt_id,
+            student_id=student_id,
+            semester=semester,
+            school_year=school_year,
+            amount_paid=amount_paid,
+            payment_date=now()
+        )
+
+        return Response(
+            {
+                "detail": "Payment recorded successfully.",
+                "receipt_id": payment.receipt_id,
+                "student_id": payment.student_id,
+                "semester": payment.semester,
+                "school_year": payment.school_year,
+                "amount_paid": str(payment.amount_paid),
+                "payment_date": payment.payment_date,
+            },
+            status=status.HTTP_201_CREATED
+        )
