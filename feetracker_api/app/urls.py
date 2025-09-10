@@ -17,7 +17,8 @@ from .views import (
     TreasurerLoginView,
     TreasurerSetNewPasswordView,
     TreasurerDashboardView,
-    TreasurerStudentBalanceView
+    TreasurerStudentBalanceView,
+    TreasurerAddPaymentView
 )
 
 urlpatterns = [
@@ -38,5 +39,6 @@ urlpatterns = [
     path('treasurer/login/', TreasurerLoginView.as_view(), name='treasurer-login'),
     path('treasurer/set-new-password/', TreasurerSetNewPasswordView.as_view(), name='treasurer-set-new-password'),
     path("treasurer/dashboard/", TreasurerDashboardView.as_view(), name="treasurer-dashboard"),
-    path('treasurer/student-balance/', TreasurerStudentBalanceView.as_view(), name='student-balance'),
+    path('treasurer/student-balance/', TreasurerStudentBalanceView.as_view(), name='treasurer-view-student-balance'),
+    path("treasurer/add-payment/", TreasurerAddPaymentView.as_view(), name="treasurer-add-payment"),
 ] 

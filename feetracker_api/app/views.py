@@ -13,6 +13,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.db.models import Sum, Q
+from django.db import models
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.mail import send_mail
 from django.utils import timezone
@@ -803,9 +804,13 @@ class TreasurerStudentBalanceView(APIView):
         response_data["data_hash"] = data_hash
 
         return Response(response_data, status=status.HTTP_200_OK)
-    
-# Treasurer Add New Payment
+
+# Treasurer Add Payment View
 class TreasurerAddPaymentView(APIView):
+    permission_classes = [IsAuthenticated, IsTreasurer]
+
+    MAX_PAID = Decimal("300.00")
+
     def post(self, request):
         serializer = TreasurerAddPaymentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -813,25 +818,24 @@ class TreasurerAddPaymentView(APIView):
         student_id = serializer.validated_data['student_id']
         semester = serializer.validated_data['semester']
         school_year = serializer.validated_data['school_year']
-        amount_paid = serializer.validated_data['amount_paid']
+        amount_paid = Decimal(serializer.validated_data['amount_paid'])
 
-        # Check if student exists
-        if not StudentRecord.objects.filter(student_id=student_id).exists():
+        if not self.can_add_payment(student_id, semester, school_year, amount_paid):
             return Response(
-                {"detail": "Student ID not found."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"detail": f"Payment exceeds the maximum of ₱{self.MAX_PAID} per semester."},
+                status=400
             )
 
-        # Auto-generate receipt_id
-        last_receipt = StudentPaymentHistory.objects.order_by('-receipt_id').first()
+        # Auto-generate receipt_id with "CTUG" prefix
+        last_receipt = StudentPaymentHistory.objects.filter(receipt_id__startswith="CTUG") \
+                                                    .order_by('-receipt_id').first()
         if last_receipt:
-            try:
-                last_num = int(last_receipt.receipt_id.split('-')[-1])
-            except ValueError:
-                last_num = 0
-            receipt_id = f"RCP-{last_num+1:04d}"
+            last_number = int(last_receipt.receipt_id[4:])
+            new_number = last_number + 1
         else:
-            receipt_id = "RCP-0001"
+            new_number = 101
+
+        receipt_id = f"CTUG{new_number}"
 
         # Save payment
         payment = StudentPaymentHistory.objects.create(
@@ -853,5 +857,14 @@ class TreasurerAddPaymentView(APIView):
                 "amount_paid": str(payment.amount_paid),
                 "payment_date": payment.payment_date,
             },
-            status=status.HTTP_201_CREATED
+            status=201
         )
+
+    def can_add_payment(self, student_id, semester, school_year, new_amount):
+        total_paid = StudentPaymentHistory.objects.filter(
+            student_id=student_id,
+            semester=semester,
+            school_year=school_year
+        ).aggregate(total=models.Sum('amount_paid'))['total'] or Decimal("0.00")
+
+        return (total_paid + new_amount) <= self.MAX_PAID

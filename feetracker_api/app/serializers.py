@@ -59,6 +59,6 @@ class TreasurerSetNewPasswordSerializer(serializers.Serializer):
 
 class TreasurerAddPaymentSerializer(serializers.Serializer):
     student_id = serializers.CharField(max_length=20)
-    semester = serializers.CharField(max_length=10)
-    school_year = serializers.CharField(max_length=9)
+    semester = serializers.IntegerField()
+    school_year = serializers.IntegerField()
     amount_paid = serializers.DecimalField(max_digits=8, decimal_places=2)
