@@ -18,7 +18,7 @@ from .views import (
     TreasurerSetNewPasswordView,
     TreasurerDashboardView,
     TreasurerStudentBalanceView,
-    TreasurerAddPaymentView
+    TreasurerAddPaymentView,
 )
 
 urlpatterns = [

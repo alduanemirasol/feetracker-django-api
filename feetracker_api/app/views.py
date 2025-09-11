@@ -17,6 +17,7 @@ from django.db import models
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.mail import send_mail
 from django.utils import timezone
+from zoneinfo import ZoneInfo
 from django.utils.timezone import now
 from datetime import timedelta
 from decimal import Decimal
@@ -685,6 +686,7 @@ class TreasurerSetNewPasswordView(APIView):
         )
     
 # Treasurer Dashboard View
+
 class TreasurerDashboardView(APIView):
     permission_classes = [IsAuthenticated, IsTreasurer]
 
@@ -709,11 +711,13 @@ class TreasurerDashboardView(APIView):
         semester_map = {"1": "1st", "2": "2nd"}
 
         for p in recent_payments:
-            payment_time = p.payment_date.time()
+            local_date = p.payment_date.astimezone(ZoneInfo("Asia/Manila"))
+
+            payment_time = local_date.time()
             if payment_time == datetime.time(0, 0):
-                payment_date_str = p.payment_date.strftime("%B %d, %Y - No time data")
+                payment_date_str = local_date.strftime("%B %d, %Y - No time data")
             else:
-                payment_date_str = p.payment_date.strftime("%B %d, %Y - %I:%M %p").lstrip("0").replace(" 0", " ")
+                payment_date_str = local_date.strftime("%B %d, %Y - %I:%M %p").lstrip("0").replace(" 0", " ")
 
             recent_list.append({
                 "receipt_id": p.receipt_id,
@@ -721,7 +725,7 @@ class TreasurerDashboardView(APIView):
                 "semester": p.semester,
                 "school_year": p.school_year,
                 "amount_paid": f"₱{p.amount_paid:,.2f}",
-                "payment_date": p.payment_date.strftime("%Y-%m-%d %H:%M:%S"),
+                "payment_date": local_date.strftime("%Y-%m-%d %H:%M:%S"),
                 "payment_date_str": payment_date_str,
                 "semester_and_school_year_str": f"{semester_map.get(str(p.semester), p.semester)} Semester {p.school_year}-{int(p.school_year)+1}"
             })
