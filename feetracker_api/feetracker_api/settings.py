@@ -51,6 +51,13 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-treasurer-cache",
+    }
+}
+
 ROOT_URLCONF = 'feetracker_api.urls'
 
 TEMPLATES = [
