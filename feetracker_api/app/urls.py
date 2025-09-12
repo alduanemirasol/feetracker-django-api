@@ -19,6 +19,7 @@ from .views import (
     TreasurerDashboardView,
     TreasurerStudentBalanceView,
     TreasurerAddPaymentView,
+    TreasurerDeletePaymentView
 )
 
 urlpatterns = [
@@ -41,4 +42,5 @@ urlpatterns = [
     path("treasurer/dashboard/", TreasurerDashboardView.as_view(), name="treasurer-dashboard"),
     path('treasurer/student-balance/', TreasurerStudentBalanceView.as_view(), name='treasurer-view-student-balance'),
     path("treasurer/add-payment/", TreasurerAddPaymentView.as_view(), name="treasurer-add-payment"),
+    path("treasurer/payments/<str:receipt_id>/", TreasurerDeletePaymentView.as_view(), name="treasurer-delete-payment"),
 ] 
