@@ -19,7 +19,8 @@ from .views import (
     TreasurerDashboardView,
     TreasurerStudentBalanceView,
     TreasurerAddPaymentView,
-    TreasurerDeletePaymentView
+    TreasurerDeletePaymentView,
+    TreasurerReportView
 )
 
 urlpatterns = [
@@ -36,11 +37,12 @@ urlpatterns = [
     path('student/delete-account/', DeleteStudentAccountView.as_view(), name='delete-student-account'),
     path('student/edit-email/', EditStudentEmailView.as_view(), name='edit_student_email'),
     path('student/change-password/', ChangeStudentPasswordView.as_view(), name='change_student_password'),
-    path("student/check-duplicate/", CheckStudentDuplicateView.as_view(), name="check-student-duplicate"),
+    path('student/check-duplicate/', CheckStudentDuplicateView.as_view(), name="check-student-duplicate"),
     path('treasurer/login/', TreasurerLoginView.as_view(), name='treasurer-login'),
     path('treasurer/set-new-password/', TreasurerSetNewPasswordView.as_view(), name='treasurer-set-new-password'),
-    path("treasurer/dashboard/", TreasurerDashboardView.as_view(), name="treasurer-dashboard"),
+    path('treasurer/dashboard/', TreasurerDashboardView.as_view(), name="treasurer-dashboard"),
     path('treasurer/student-balance/', TreasurerStudentBalanceView.as_view(), name='treasurer-view-student-balance'),
-    path("treasurer/add-payment/", TreasurerAddPaymentView.as_view(), name="treasurer-add-payment"),
-    path("treasurer/payments/<str:receipt_id>/", TreasurerDeletePaymentView.as_view(), name="treasurer-delete-payment"),
+    path('treasurer/add-payment/', TreasurerAddPaymentView.as_view(), name="treasurer-add-payment"),
+    path('treasurer/payments/<str:receipt_id>/', TreasurerDeletePaymentView.as_view(), name='treasurer-delete-payment'),
+    path('treasurer/report/', TreasurerReportView.as_view(), name='treasurer-report'),
 ] 

@@ -9,14 +9,12 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView 
-from rest_framework.parsers import MultiPartParser, FormParser
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
-from django.db.models import Sum, Q
-from django.db import models
+from django.db.models import Sum, Q, Max, F, FloatField, Case, When, Value
 from django.contrib.auth.hashers import check_password, make_password
+from django.utils.dateparse import parse_datetime
 from django.core.mail import send_mail
-from django.core.cache import cache
 from django.utils import timezone
 from zoneinfo import ZoneInfo
 from django.utils.timezone import now
@@ -130,15 +128,15 @@ class StudentRegisterView(APIView):
         account.save()  
 
         send_mail(
-            subject="Your FeeTracker Verification Code",
+            subject="Your FeeTracker Code",
             message=(
                 f"Hi {full_name},\n\n"
-                f"Thanks for signing up with FeeTracker! 🎉 We're really glad to have you here.\n\n"
-                f"To finish setting up your account, please use the code below:\n\n"
+                f"Thanks for joining FeeTracker! We're happy to have you.\n\n"
+                f"Use this code to set up your account:\n\n"
                 f"🔐 {otp_code}\n\n"
-                f"This code will only work for the next 10 minutes, so don’t wait too long.\n\n"
-                f"If you didn’t try to create an account, no worries — you can just ignore this message.\n\n"
-                f"Talk soon,\n"
+                f"This code works for 10 minutes only, so use it soon.\n\n"
+                f"If you did not sign up, just ignore this message.\n\n"
+                f"Thanks,\n"
                 f"The FeeTracker Team"
             ),
             from_email="noreply@feetracker.com",
@@ -689,7 +687,7 @@ class TreasurerSetNewPasswordView(APIView):
 # Treasurer Dashboard View
 class TreasurerDashboardView(APIView):
     permission_classes = [IsAuthenticated, IsTreasurer]
-
+    
     def get(self, request):
         token_payload = getattr(request, 'auth', None)
         username = token_payload.get('username') if token_payload else None
@@ -697,18 +695,22 @@ class TreasurerDashboardView(APIView):
         semester = request.query_params.get("semester")
         school_year = request.query_params.get("school_year")
 
-        filtered_for_total = StudentPaymentHistory.objects.all()
+        payments_query = StudentPaymentHistory.objects.all()
+
+        # Apply filters only for total_paid
+        filtered_payments = payments_query
         if semester:
-            filtered_for_total = filtered_for_total.filter(semester=semester)
+            filtered_payments = filtered_payments.filter(semester=semester)
         if school_year:
-            filtered_for_total = filtered_for_total.filter(school_year=school_year)
+            filtered_payments = filtered_payments.filter(school_year=school_year)
 
-        total_paid = filtered_for_total.aggregate(total=Sum("amount_paid"))["total"] or 0
+        total_paid = filtered_payments.aggregate(total=Sum("amount_paid"))["total"] or 0
 
-        recent_payments = StudentPaymentHistory.objects.order_by("-payment_date")[:7]
+        # Recent payments without filters
+        recent_payments = list(payments_query.order_by("-payment_date")[:7])
 
-        recent_list = []
         semester_map = {"1": "1st", "2": "2nd"}
+        recent_list = []
 
         for p in recent_payments:
             local_date = p.payment_date.astimezone(ZoneInfo("Asia/Manila"))
@@ -737,29 +739,16 @@ class TreasurerDashboardView(APIView):
             "recent_payments": recent_list,
         }
 
-        # Optional: Add hash for integrity
-        response_str = json.dumps(response_data, sort_keys=True)
-        data_hash = hashlib.sha256(response_str.encode()).hexdigest()
-        response_data["data_hash"] = data_hash
-
         return Response(response_data, status=200)
 
 # Treasurer Student Balance View
 class TreasurerStudentBalanceView(APIView):
-    # permission_classes = [IsAuthenticated, IsTreasurer]
-    
-    def get_cache_key(self, student_id, semester, school_year):
-        return f"student_balance:{student_id or 'all'}:{semester or 'all'}:{school_year or 'all'}"
+    permission_classes = [IsAuthenticated, IsTreasurer]
 
     def get(self, request, format=None):
         student_id = request.query_params.get('student_id')
         semester = request.query_params.get('semester')
         school_year = request.query_params.get('school_year')
-
-        cache_key = self.get_cache_key(student_id, semester, school_year)
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            return Response(cached_data)
 
         response_list = []
         TOTAL_FEE = Decimal('300.00')
@@ -779,7 +768,6 @@ class TreasurerStudentBalanceView(APIView):
                 "total_paid": f"₱{total_paid:,.2f}",
                 "balance": f"₱{balance:,.2f}"
             })
-
         else:
             payments_qs = StudentPaymentHistory.objects.all()
             if semester:
@@ -790,7 +778,7 @@ class TreasurerStudentBalanceView(APIView):
             latest_student_ids = (
                 payments_qs.order_by('-receipt_id')
                 .values_list('student_id', flat=True)
-                .distinct()[:10]
+                .distinct()[:15]
             )
 
             if latest_student_ids:
@@ -798,27 +786,44 @@ class TreasurerStudentBalanceView(APIView):
                 aggregated = payments.values('student_id').annotate(total_paid=Sum('amount_paid'))
 
                 for entry in aggregated:
-                    student_id = entry['student_id']
+                    sid = entry['student_id']
                     total_paid = entry['total_paid'] or Decimal('0.00')
                     balance = TOTAL_FEE - total_paid
 
                     response_list.append({
-                        "student_id": student_id,
+                        "student_id": sid,
                         "total_paid": f"₱{total_paid:,.2f}",
                         "balance": f"₱{balance:,.2f}"
                     })
 
-        data = {"data": response_list}
-        cache.set(cache_key, data, timeout=300)  # Cache for 5 minutes
-        return Response(data)
+        return Response({"data": response_list})
+    
+# Global variables to track last receipt and deleted IDs
+DELETED_RECEIPTS = set()
+
+# Initialize LAST_RECEIPT_NUMBER from the DB
+def get_last_receipt_number():
+    last_receipt = StudentPaymentHistory.objects.aggregate(
+        max_number=Max('receipt_id')
+    )['max_number']
+
+    if last_receipt and last_receipt.startswith("CTUG"):
+        try:
+            return int(last_receipt[4:])
+        except ValueError:
+            return 100
+    return 100
+
+LAST_RECEIPT_NUMBER = get_last_receipt_number()
 
 # Treasurer Add Payment View
 class TreasurerAddPaymentView(APIView):
     permission_classes = [IsAuthenticated, IsTreasurer]
-
     MAX_PAID = Decimal("300.00")
 
     def post(self, request):
+        global LAST_RECEIPT_NUMBER, DELETED_RECEIPTS
+
         serializer = TreasurerAddPaymentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -832,27 +837,20 @@ class TreasurerAddPaymentView(APIView):
                 student_id=student_id,
                 semester=semester,
                 school_year=school_year
-            ).aggregate(total=models.Sum('amount_paid'))['total'] or Decimal("0.00")
-
+            ).aggregate(total=Sum('amount_paid'))['total'] or Decimal("0.00")
             balance = self.MAX_PAID - total_paid
+            return Response({"detail": f"Paid amount exceed. Balance: ₱{balance:,.2f}"}, status=400)
 
-            return Response(
-                {
-                    "detail": f"Paid amount exceed. Balance: ₱{balance:,.2f}"
-                },
-                status=400
-            )
-        
-        # Auto-generate receipt_id with "CTUG" prefix
-        last_receipt = StudentPaymentHistory.objects.filter(receipt_id__startswith="CTUG") \
-                                                    .order_by('-receipt_id').first()
-        if last_receipt:
-            last_number = int(last_receipt.receipt_id[4:])
-            new_number = last_number + 1
+        # Generate receipt ID
+        if DELETED_RECEIPTS:
+            # Fill in deleted receipt IDs first
+            receipt_id = DELETED_RECEIPTS.pop()
+            number = int(receipt_id[4:])
         else:
-            new_number = 101
-
-        receipt_id = f"CTUG{new_number}"
+            # Increment last receipt number
+            LAST_RECEIPT_NUMBER += 1
+            number = LAST_RECEIPT_NUMBER
+            receipt_id = f"CTUG{number}"
 
         # Save payment
         payment = StudentPaymentHistory.objects.create(
@@ -882,16 +880,87 @@ class TreasurerAddPaymentView(APIView):
             student_id=student_id,
             semester=semester,
             school_year=school_year
-        ).aggregate(total=models.Sum('amount_paid'))['total'] or Decimal("0.00")
-
+        ).aggregate(total=Sum('amount_paid'))['total'] or Decimal("0.00")
         return (total_paid + new_amount) <= self.MAX_PAID
 
 # Treasurer Delete Payment View
 class TreasurerDeletePaymentView(APIView):
+    permission_classes = [IsAuthenticated, IsTreasurer]
+
     def delete(self, request, receipt_id, format=None):
-        try:
-            payment = StudentPaymentHistory.objects.get(receipt_id=receipt_id)
-            payment.delete()
-            return Response({"detail": "Payment deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
-        except StudentPaymentHistory.DoesNotExist:
-            return Response({"detail": "Payment not found"}, status=status.HTTP_404_NOT_FOUND)
+        global DELETED_RECEIPTS
+
+        receipt_id = receipt_id.strip()
+        deleted_count, _ = StudentPaymentHistory.objects.filter(receipt_id=receipt_id).delete()
+
+        if deleted_count == 0:
+            return Response({"detail": f"Payment not found: {receipt_id}"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Track deleted receipt ID for reuse
+        DELETED_RECEIPTS.add(receipt_id)
+
+        return Response({"detail": f"Payment {receipt_id} deleted successfully"}, status=status.HTTP_200_OK)
+    
+
+class TreasurerReportView(APIView):
+    def get(self, request):
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
+        semester = request.query_params.get('semester')
+        school_year = request.query_params.get('school_year')
+
+        payments = StudentPaymentHistory.objects.all()
+
+        def parse_date(date_str):
+            if date_str:
+                date_obj = timezone.datetime.fromisoformat(date_str)
+                if timezone.is_naive(date_obj):
+                    date_obj = timezone.make_aware(date_obj)
+                return date_obj
+            return None
+
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str)
+
+        if start_date:
+            payments = payments.filter(payment_date__gte=start_date)
+        if end_date:
+            payments = payments.filter(payment_date__lte=end_date)
+        if semester:
+            payments = payments.filter(semester=semester)
+        if school_year:
+            payments = payments.filter(school_year=school_year)
+
+        FULL_PAYMENT_AMOUNT = 300.00
+
+        # Group payments per student
+        students = payments.values('student_id').annotate(total_paid=Sum('amount_paid'))
+        total_of_students = students.count()
+
+        total_of_fully_paid_students = students.filter(total_paid__gte=FULL_PAYMENT_AMOUNT).count()
+        total_of_not_fully_paid_students = total_of_students - total_of_fully_paid_students
+
+        total_money_received = students.aggregate(total=Sum('total_paid'))['total'] or 0
+
+        total_balance_money = students.aggregate(
+            total_balance=Sum(
+                Case(
+                    When(total_paid__lt=FULL_PAYMENT_AMOUNT, then=FULL_PAYMENT_AMOUNT - F('total_paid')),
+                    default=Value(0),
+                    output_field=FloatField()
+                )
+            )
+        )['total_balance'] or 0
+
+        expected_total_money_received = FULL_PAYMENT_AMOUNT * total_of_students
+
+        data = {
+            "total_money_received": float(total_money_received),
+            "total_balance_money": float(total_balance_money),
+            "expected_total_money_received": float(expected_total_money_received),
+            "total_of_students": total_of_students,
+            "total_of_fully_paid_students": total_of_fully_paid_students,
+            "total_of_not_fully_paid_students": total_of_not_fully_paid_students
+        }
+
+        return Response(data)
