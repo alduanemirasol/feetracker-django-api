@@ -903,6 +903,8 @@ class TreasurerDeletePaymentView(APIView):
     
 
 class TreasurerReportView(APIView):
+    # permission_classes = [IsAuthenticated, IsTreasurer]
+    
     def get(self, request):
         start_date_str = request.query_params.get('start_date')
         end_date_str = request.query_params.get('end_date')
@@ -933,15 +935,12 @@ class TreasurerReportView(APIView):
 
         FULL_PAYMENT_AMOUNT = 300.00
 
-        # Group payments per student
         students = payments.values('student_id').annotate(total_paid=Sum('amount_paid'))
         total_of_students = students.count()
-
         total_of_fully_paid_students = students.filter(total_paid__gte=FULL_PAYMENT_AMOUNT).count()
         total_of_not_fully_paid_students = total_of_students - total_of_fully_paid_students
 
         total_money_received = students.aggregate(total=Sum('total_paid'))['total'] or 0
-
         total_balance_money = students.aggregate(
             total_balance=Sum(
                 Case(
@@ -951,8 +950,10 @@ class TreasurerReportView(APIView):
                 )
             )
         )['total_balance'] or 0
-
         expected_total_money_received = FULL_PAYMENT_AMOUNT * total_of_students
+
+        fully_paid_percentage = (total_of_fully_paid_students / total_of_students * 100) if total_of_students else 0
+        not_fully_paid_percentage = (total_of_not_fully_paid_students / total_of_students * 100) if total_of_students else 0
 
         data = {
             "total_money_received": float(total_money_received),
@@ -960,7 +961,9 @@ class TreasurerReportView(APIView):
             "expected_total_money_received": float(expected_total_money_received),
             "total_of_students": total_of_students,
             "total_of_fully_paid_students": total_of_fully_paid_students,
-            "total_of_not_fully_paid_students": total_of_not_fully_paid_students
+            "total_of_not_fully_paid_students": total_of_not_fully_paid_students,
+            "fully_paid_percentage": round(fully_paid_percentage, 2),
+            "not_fully_paid_percentage": round(not_fully_paid_percentage, 2)
         }
 
         return Response(data)
