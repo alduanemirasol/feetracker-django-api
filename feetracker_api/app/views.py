@@ -20,6 +20,7 @@ from zoneinfo import ZoneInfo
 from django.utils.timezone import now
 from datetime import timedelta
 from decimal import Decimal
+from .pdf_report import generate_treasurer_report_pdf
 
 from .models import StudentRecord, StudentAccount, StudentPaymentHistory, TreasurerAccount
 from .serializers import ( 
@@ -900,10 +901,10 @@ class TreasurerDeletePaymentView(APIView):
         DELETED_RECEIPTS.add(receipt_id)
 
         return Response({"detail": f"Payment {receipt_id} deleted successfully"}, status=status.HTTP_200_OK)
-    
 
+# Treasurer Report View
 class TreasurerReportView(APIView):
-    # permission_classes = [IsAuthenticated, IsTreasurer]
+    permission_classes = [IsAuthenticated, IsTreasurer]
     
     def get(self, request):
         start_date_str = request.query_params.get('start_date')
@@ -934,7 +935,6 @@ class TreasurerReportView(APIView):
             payments = payments.filter(school_year=school_year)
 
         FULL_PAYMENT_AMOUNT = 300.00
-
         students = payments.values('student_id').annotate(total_paid=Sum('amount_paid'))
         total_of_students = students.count()
         total_of_fully_paid_students = students.filter(total_paid__gte=FULL_PAYMENT_AMOUNT).count()
@@ -955,7 +955,40 @@ class TreasurerReportView(APIView):
         fully_paid_percentage = (total_of_fully_paid_students / total_of_students * 100) if total_of_students else 0
         not_fully_paid_percentage = (total_of_not_fully_paid_students / total_of_students * 100) if total_of_students else 0
 
-        data = {
+        # PDF download block - must be inside the get() method
+        if request.query_params.get('download') == 'pdf':
+            summary_data = [
+                ["Total Money Received", total_money_received],
+                ["Total Balance Money", total_balance_money],
+                ["Expected Total Money Received", expected_total_money_received],
+                ["Total Students", total_of_students],
+                ["Fully Paid Students", total_of_fully_paid_students],
+                ["Not Fully Paid Students", total_of_not_fully_paid_students],
+                ["Fully Paid %", round(fully_paid_percentage, 2)],
+                ["Not Fully Paid %", round(not_fully_paid_percentage, 2)]
+            ]
+
+            payment_data = [["Student ID", "Payment Date", "Amount Paid", "Semester", "School Year"]]
+            for p in payments.order_by('student_id', 'payment_date'):
+                payment_data.append([
+                    p.student_id, 
+                    p.payment_date.strftime("%Y-%m-%d"),
+                    p.amount_paid, 
+                    p.semester, 
+                    p.school_year
+                ])
+
+            return generate_treasurer_report_pdf(
+                summary_data,
+                payment_data,
+                semester or "N/A",
+                school_year or "N/A",
+                start_date_str or "N/A",
+                end_date_str or "N/A"
+            )
+
+        # Default JSON response
+        return Response({
             "total_money_received": float(total_money_received),
             "total_balance_money": float(total_balance_money),
             "expected_total_money_received": float(expected_total_money_received),
@@ -964,6 +997,4 @@ class TreasurerReportView(APIView):
             "total_of_not_fully_paid_students": total_of_not_fully_paid_students,
             "fully_paid_percentage": round(fully_paid_percentage, 2),
             "not_fully_paid_percentage": round(not_fully_paid_percentage, 2)
-        }
-
-        return Response(data)
+        })
