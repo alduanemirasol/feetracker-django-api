@@ -36,6 +36,25 @@ from .serializers import (
     TreasurerAddPaymentSerializer
 )
 
+# Global variables to track last receipt and deleted IDs
+DELETED_RECEIPTS = set()
+
+# Initialize LAST_RECEIPT_NUMBER from the DB
+def get_last_receipt_number():
+    last_receipt = StudentPaymentHistory.objects.aggregate(
+        max_number=Max('receipt_id')
+    )['max_number']
+
+    if last_receipt and last_receipt.startswith("CTUG"):
+        try:
+            return int(last_receipt[4:])
+        except ValueError:
+            return 100
+    return 100
+
+# Get the last receipt number
+LAST_RECEIPT_NUMBER = get_last_receipt_number()
+
 # Student Refresh View
 class StudentTokenRefreshView(TokenRefreshView):
     serializer_class = StudentTokenRefreshSerializer
@@ -779,7 +798,7 @@ class TreasurerStudentBalanceView(APIView):
             latest_student_ids = (
                 payments_qs.order_by('-receipt_id')
                 .values_list('student_id', flat=True)
-                .distinct()[:15]
+                .distinct()[:20]
             )
 
             if latest_student_ids:
@@ -798,24 +817,6 @@ class TreasurerStudentBalanceView(APIView):
                     })
 
         return Response({"data": response_list})
-    
-# Global variables to track last receipt and deleted IDs
-DELETED_RECEIPTS = set()
-
-# Initialize LAST_RECEIPT_NUMBER from the DB
-def get_last_receipt_number():
-    last_receipt = StudentPaymentHistory.objects.aggregate(
-        max_number=Max('receipt_id')
-    )['max_number']
-
-    if last_receipt and last_receipt.startswith("CTUG"):
-        try:
-            return int(last_receipt[4:])
-        except ValueError:
-            return 100
-    return 100
-
-LAST_RECEIPT_NUMBER = get_last_receipt_number()
 
 # Treasurer Add Payment View
 class TreasurerAddPaymentView(APIView):
@@ -968,7 +969,7 @@ class TreasurerReportView(APIView):
                 ["Not Fully Paid %", round(not_fully_paid_percentage, 2)]
             ]
 
-            payment_data = [["Student ID", "Payment Date", "Amount Paid", "Semester", "School Year"]]
+            payment_data = [["Student ID", "Payment Date", "Amount Paid", "Semester", "Scho ol Year"]]
             for p in payments.order_by('student_id', 'payment_date'):
                 payment_data.append([
                     p.student_id, 
