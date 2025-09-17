@@ -12,10 +12,12 @@ def generate_treasurer_report_pdf(summary_data, payment_data, semester, school_y
     elements = []
     styles = getSampleStyleSheet()
 
-    # Header info
+    elements.append(Paragraph("Filters", styles['Heading2']))
+    elements.append(Spacer(1, 5))
+
     header_data = [
-        ["Semester:", semester, "School Year:", school_year],
-        ["Start Date:", start_date, "End Date:", end_date]
+    ["Semester:", semester, "School Year:", school_year],
+    ["Start Date:", start_date, "End Date:", end_date]
     ]
     table_width = A4[0] - doc.leftMargin - doc.rightMargin
     col_widths_header = [table_width * 0.15, table_width * 0.35, table_width * 0.15, table_width * 0.35]
@@ -27,15 +29,18 @@ def generate_treasurer_report_pdf(summary_data, payment_data, semester, school_y
         ('BACKGROUND', (2,0), (2,-1), HexColor("#1F618D")),
         ('TEXTCOLOR', (0,0), (0,-1), colors.white),
         ('TEXTCOLOR', (2,0), (2,-1), colors.white),
+        ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
+        ('FONTNAME', (2,0), (2,-1), 'Helvetica-Bold'),
 
         # Values (col 1 and 3)
         ('BACKGROUND', (1,0), (1,-1), colors.white),
         ('BACKGROUND', (3,0), (3,-1), colors.white),
         ('TEXTCOLOR', (1,0), (1,-1), colors.black),
         ('TEXTCOLOR', (3,0), (3,-1), colors.black),
+        ('FONTNAME', (1,0), (1,-1), 'Helvetica'),
+        ('FONTNAME', (3,0), (3,-1), 'Helvetica'),
 
         # Common styles
-        ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
         ('FONTSIZE', (0,0), (-1,-1), 10),
         ('GRID', (0,0), (-1,-1), 0.3, HexColor("#B3B6B7")),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
