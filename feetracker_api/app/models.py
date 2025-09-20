@@ -31,3 +31,9 @@ class TreasurerAccount(models.Model):
     password = models.CharField(max_length=128)
     email = models.EmailField(unique=True)
     must_change_password = models.BooleanField(default=False)
+
+class AdminAccount(models.Model):
+    username = models.CharField(max_length=50, unique=True)
+    password = models.CharField(max_length=128)
+    email = models.EmailField(unique=True)
+    must_change_password = models.BooleanField(default=False)

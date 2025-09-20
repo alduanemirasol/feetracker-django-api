@@ -22,7 +22,7 @@ from datetime import timedelta
 from decimal import Decimal
 from .pdf_report import generate_treasurer_report_pdf
 
-from .models import StudentRecord, StudentAccount, StudentPaymentHistory, TreasurerAccount
+from .models import StudentRecord, StudentAccount, StudentPaymentHistory, TreasurerAccount, AdminAccount
 from .serializers import ( 
     StudentLoginSerializer, 
     StudentTokenRefreshSerializer, 
@@ -33,7 +33,8 @@ from .serializers import (
     StudentForgotPasswordVerifyOtpSerializer,
     TreasurerLoginSerializer,
     TreasurerSetNewPasswordSerializer,
-    TreasurerAddPaymentSerializer
+    TreasurerAddPaymentSerializer,
+    AdminLoginSerializer
 )
 
 # Global variables to track last receipt and deleted IDs
@@ -655,10 +656,10 @@ class TreasurerLoginView(APIView):
             return Response({'detail': 'Invalid username or password'}, status=status.HTTP_401_UNAUTHORIZED)
 
         # Check if password is temporary
-        if account.is_temporary:
+        if account.must_change_password:
             return Response(
                 {
-                    'is_temporary': True,
+                    'must_change_password': True,
                     'detail': 'Your password is temporary. You must set a new password.'
                 },
                 status=status.HTTP_200_OK
@@ -676,7 +677,7 @@ class TreasurerLoginView(APIView):
         return Response({
             'refresh': str(refresh),
             'access': str(access),
-            'is_temporary': False
+            'must_change_password': False
         }, status=status.HTTP_200_OK)
     
 # Treasurer Set New Password View
@@ -696,7 +697,7 @@ class TreasurerSetNewPasswordView(APIView):
 
         # Update password
         account.password = make_password(new_password)
-        account.is_temporary = False
+        account.must_change_password = False
         account.save()
 
         return Response(
@@ -1000,3 +1001,46 @@ class TreasurerReportView(APIView):
             "fully_paid_percentage": round(fully_paid_percentage, 2),
             "not_fully_paid_percentage": round(not_fully_paid_percentage, 2)
         })
+    
+# Admin Login View
+class AdminLoginView(APIView):
+    def post(self, request):
+        serializer = AdminLoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        username = serializer.validated_data['username']
+        password = serializer.validated_data['password']
+
+        try:
+            account = AdminAccount.objects.get(username=username)
+        except AdminAccount.DoesNotExist:
+            return Response({'detail': 'Username not found'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Check password
+        if not check_password(password, account.password):
+            return Response({'detail': 'Invalid username or password'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Check if password is temporary
+        if account.must_change_password:
+            return Response(
+                {
+                    'must_change_password': True,
+                    'detail': 'Your password is temporary. You must set a new password.'
+                },
+                status=status.HTTP_200_OK
+            )
+
+        # Generate JWT tokens
+        refresh = RefreshToken()
+        refresh['username'] = account.username
+        refresh['role'] = 'admin'
+
+        access = refresh.access_token
+        access['username'] = account.username
+        access['role'] = 'admin'
+
+        return Response({
+            'refresh': str(refresh),
+            'access': str(access),
+            'must_change_password': False
+        }, status=status.HTTP_200_OK)

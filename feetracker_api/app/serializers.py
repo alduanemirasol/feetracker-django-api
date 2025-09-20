@@ -62,3 +62,7 @@ class TreasurerAddPaymentSerializer(serializers.Serializer):
     semester = serializers.IntegerField()
     school_year = serializers.IntegerField()
     amount_paid = serializers.DecimalField(max_digits=8, decimal_places=2)
+
+class AdminLoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)

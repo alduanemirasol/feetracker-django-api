@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RemoveField(
             model_name='treasureraccount',
-            name='is_temporary',
+            name='must_change_password',
         ),
         migrations.AddField(
             model_name='treasureraccount',
