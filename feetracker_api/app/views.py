@@ -2,7 +2,7 @@ import json
 import random
 import hashlib
 import datetime
-from .authentication import IsStudent, IsTreasurer
+from .authentication import IsStudent, IsTreasurer, IsAdmin
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -13,7 +13,6 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.db.models import Sum, Q, Max, F, FloatField, Case, When, Value
 from django.contrib.auth.hashers import check_password, make_password
-from django.utils.dateparse import parse_datetime
 from django.core.mail import send_mail
 from django.utils import timezone
 from zoneinfo import ZoneInfo
@@ -958,7 +957,7 @@ class TreasurerReportView(APIView):
         fully_paid_percentage = (total_of_fully_paid_students / total_of_students * 100) if total_of_students else 0
         not_fully_paid_percentage = (total_of_not_fully_paid_students / total_of_students * 100) if total_of_students else 0
 
-        # PDF download block - must be inside the get() method
+        # PDF download
         if request.query_params.get('download') == 'pdf':
             summary_data = [
                 ["Total Money Received", total_money_received],
@@ -1044,3 +1043,54 @@ class AdminLoginView(APIView):
             'access': str(access),
             'must_change_password': False
         }, status=status.HTTP_200_OK)
+
+# Admin Create Student Account View
+class AdminCreateStudentAccountView(APIView):
+    def post(self, request):
+        serializer = StudentRegisterSerializer(data=request.data)   # Reused Student Register Serializer
+        serializer.is_valid(raise_exception=True)
+
+        student_id = serializer.validated_data['student_id']
+        email = serializer.validated_data['email']
+        password = serializer.validated_data['password']
+        first_name = serializer.validated_data['first_name']
+        middle_name = serializer.validated_data['middle_name']
+        last_name = serializer.validated_data['last_name']
+        contact_number = serializer.validated_data['contact_number']
+        birthdate = serializer.validated_data['birthdate']
+        address = serializer.validated_data['address']
+
+        # Check if student_id is already verified
+        if StudentAccount.objects.filter(student__student_id=student_id, is_verified=True).exists():
+            return Response({'detail': 'This Student ID is already verified.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if email is already used
+        if StudentRecord.objects.filter(email=email).exists():
+            return Response({'detail': 'This Email is already registered.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        full_name = " ".join(filter(None, [first_name, middle_name, last_name]))
+
+        # Create or update student record
+        student_record, _ = StudentRecord.objects.update_or_create(
+            student_id=student_id,
+            defaults={
+                'email': email,
+                'first_name': first_name,
+                'middle_name': middle_name,
+                'last_name': last_name,
+                'contact_number': contact_number,
+                'birthdate': birthdate,
+                'address': address,
+                'full_name': full_name
+            }
+        )
+
+        # Create student account, bypass OTP, mark verified
+        account, _ = StudentAccount.objects.get_or_create(student=student_record)
+        account.password = make_password(password)
+        account.otp_code = None
+        account.otp_expiry = None
+        account.is_verified = True
+        account.save()
+
+        return Response({'detail': 'Student account created and verified by admin.'}, status=status.HTTP_201_CREATED)
