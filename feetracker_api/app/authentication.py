@@ -3,7 +3,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 
 class AuthlessUser:
     is_authenticated = True
-
+    
 class IsStudent(BasePermission):
     def has_permission(self, request, view):
         return request.auth and request.auth.get("role") == "student"
@@ -11,6 +11,10 @@ class IsStudent(BasePermission):
 class IsTreasurer(BasePermission):
     def has_permission(self, request, view):
         return request.auth and request.auth.get("role") == "treasurer"
+    
+class IsAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return request.auth and request.auth.get("role") == "admin"
 
 class CustomJWTAuthentication(JWTAuthentication):
     def get_user(self, validated_token):

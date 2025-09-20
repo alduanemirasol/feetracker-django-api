@@ -6,8 +6,8 @@ from .models import TreasurerAccount
 
 @admin.register(TreasurerAccount)
 class TreasurerAdmin(admin.ModelAdmin):
-    list_display = ('username', 'email', 'is_temporary')
-    fields = ('username', 'email', 'password', 'is_temporary')  # <-- show in form
+    list_display = ('username', 'email', 'must_change_password')
+    fields = ('username', 'email', 'password', 'must_change_password')
 
     def save_model(self, request, obj, form, change):
         if not change or 'password' in form.changed_data:
@@ -18,12 +18,8 @@ class TreasurerAdmin(admin.ModelAdmin):
                 temp_password = form.cleaned_data['password']
                 obj.password = make_password(temp_password)
 
-            # Remove the forced default
-            # Let admin’s choice of is_temporary be respected
-
             super().save_model(request, obj, form, change)
 
-            # Only send password email if creating new
             if not change:
                 send_mail(
                     subject="Welcome to FeeTracker!",

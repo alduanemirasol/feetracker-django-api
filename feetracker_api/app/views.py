@@ -929,7 +929,8 @@ class TreasurerReportView(APIView):
         if start_date:
             payments = payments.filter(payment_date__gte=start_date)
         if end_date:
-            payments = payments.filter(payment_date__lte=end_date)
+            end_date += timedelta(days=1)
+            payments = payments.filter(payment_date__lt=end_date)
         if semester:
             payments = payments.filter(semester=semester)
         if school_year:
