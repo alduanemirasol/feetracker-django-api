@@ -1,7 +1,7 @@
 from django.contrib import admin
+from django.core.mail import send_mail
 from django.utils.crypto import get_random_string
 from django.contrib.auth.hashers import make_password
-from django.core.mail import send_mail
 from .models import TreasurerAccount
 
 @admin.register(TreasurerAccount)
@@ -10,30 +10,37 @@ class TreasurerAdmin(admin.ModelAdmin):
     fields = ('username', 'email', 'password', 'must_change_password')
 
     def save_model(self, request, obj, form, change):
-        if not change or 'password' in form.changed_data:
+        temp_password = None
+
+        # If creating a new Treasurer
+        if not change:
             if not obj.password:
                 temp_password = get_random_string(length=8)
                 obj.password = make_password(temp_password)
             else:
-                temp_password = form.cleaned_data['password']
-                obj.password = make_password(temp_password)
+                temp_password = obj.password
+                obj.password = make_password(obj.password)
 
-            super().save_model(request, obj, form, change)
+        # If updating Treasurer and password was changed
+        elif 'password' in form.changed_data:
+            temp_password = obj.password
+            obj.password = make_password(obj.password)
 
-            if not change:
-                send_mail(
-                    subject="Welcome to FeeTracker!",
-                    message=(
-                        f"Hi,\n"
-                        f"Your Treasurer account is ready.\n"
-                        f"Username: {obj.username}\n"
-                        f"Temporary Password: {temp_password}\n"
-                        f"Please log in and set a new password as soon as possible.\n"
-                        f"Thanks,\nThe FeeTracker Team"
-                    ),
-                    from_email="noreply@feetracker.com",
-                    recipient_list=[obj.email],
-                    fail_silently=False
-                )
-        else:
-            super().save_model(request, obj, form, change)
+        super().save_model(request, obj, form, change)
+
+        # Send email only when creating new Treasurer
+        if temp_password and not change:
+            send_mail(
+                subject="Welcome to FeeTracker!",
+                message=(
+                    f"Hi,\n"
+                    f"Your Treasurer account is ready.\n"
+                    f"Username: {obj.username}\n"
+                    f"Temporary Password: {temp_password}\n"
+                    f"Please log in and set a new password as soon as possible.\n"
+                    f"Thanks,\nThe FeeTracker Team"
+                ),
+                from_email="noreply@feetracker.com",
+                recipient_list=[obj.email],
+                fail_silently=False
+            )
