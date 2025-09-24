@@ -1046,8 +1046,10 @@ class AdminLoginView(APIView):
 
 # Admin Create Student Account View
 class AdminCreateStudentAccountView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
     def post(self, request):
-        serializer = StudentRegisterSerializer(data=request.data)   # Reused Student Register Serializer
+        serializer = StudentRegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         student_id = serializer.validated_data['student_id']
