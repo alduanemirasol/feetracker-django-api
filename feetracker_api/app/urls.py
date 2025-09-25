@@ -23,7 +23,8 @@ from .views import (
     TreasurerReportView,
     AdminLoginView,
     AdminCreateStudentAccountView,
-    AdminCreateTreasurerAccountView
+    AdminCreateTreasurerAccountView,
+    AdminCreateAdminAccountView
 )
 
 urlpatterns = [
@@ -51,4 +52,5 @@ urlpatterns = [
     path('admin/login/', AdminLoginView.as_view(), name='admin-login'),
     path('admin/create/student-account/', AdminCreateStudentAccountView.as_view(), name='admin-create-student-account'),
     path('admin/create/treasurer-account/', AdminCreateTreasurerAccountView.as_view(), name='admin-create-treasurer-account'),
+    path('admin/create/admin-account/', AdminCreateAdminAccountView.as_view(), name='admin-create-admin-account'),
 ] 

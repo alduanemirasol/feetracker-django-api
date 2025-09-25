@@ -72,3 +72,9 @@ class TreasurerAddPaymentSerializer(serializers.Serializer):
 class AdminLoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
+
+class AdminRegisterSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=50)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    must_change_password = serializers.BooleanField(default=False)
