@@ -53,6 +53,12 @@ class TreasurerLoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
+class TreasurerRegisterSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=50)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    must_change_password = serializers.BooleanField(default=False)
+
 class TreasurerSetNewPasswordSerializer(serializers.Serializer):
     username = serializers.CharField()
     new_password = serializers.CharField(write_only=True)

@@ -31,9 +31,10 @@ from .serializers import (
     StudentForgotPasswordRequestSerializer,   
     StudentForgotPasswordVerifyOtpSerializer,
     TreasurerLoginSerializer,
+    TreasurerRegisterSerializer,
     TreasurerSetNewPasswordSerializer,
     TreasurerAddPaymentSerializer,
-    AdminLoginSerializer
+    AdminLoginSerializer,
 )
 
 # Global variables to track last receipt and deleted IDs
@@ -1096,3 +1097,34 @@ class AdminCreateStudentAccountView(APIView):
         account.save()
 
         return Response({'detail': 'Student account created and verified by admin.'}, status=status.HTTP_201_CREATED)
+    
+# Admin Create Treasurer Account View
+class AdminCreateTreasurerAccountView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request):
+        serializer = TreasurerRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        username = serializer.validated_data['username']
+        email = serializer.validated_data['email']
+        password = serializer.validated_data['password']
+        must_change_password = serializer.validated_data.get('must_change_password', False)
+
+        # Check if username is already used
+        if TreasurerAccount.objects.filter(username=username).exists():
+            return Response({'detail': 'This username is already registered.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if email is already used
+        if TreasurerAccount.objects.filter(email=email).exists():
+            return Response({'detail': 'This email is already registered.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create treasurer account
+        treasurer = TreasurerAccount.objects.create(
+            username=username,
+            email=email,
+            password=make_password(password),
+            must_change_password=must_change_password
+        )
+
+        return Response({'detail': 'Treasurer account successfully created.'}, status=status.HTTP_201_CREATED)
