@@ -856,6 +856,10 @@ class TreasurerAddPaymentView(APIView):
             number = LAST_RECEIPT_NUMBER
             receipt_id = f"CTUG{number}"
 
+        # Extract treasurer from JWT
+        token_payload = getattr(request, 'auth', None)
+        treasurer_username = token_payload.get('username') if token_payload else 'unknown'
+
         # Save payment
         payment = StudentPaymentHistory.objects.create(
             receipt_id=receipt_id,
@@ -863,7 +867,8 @@ class TreasurerAddPaymentView(APIView):
             semester=semester,
             school_year=school_year,
             amount_paid=amount_paid,
-            payment_date=now()
+            payment_date=now(),
+            added_by=treasurer_username
         )
 
         return Response(
@@ -875,6 +880,7 @@ class TreasurerAddPaymentView(APIView):
                 "school_year": payment.school_year,
                 "amount_paid": str(payment.amount_paid),
                 "payment_date": payment.payment_date,
+                "added_by": payment.added_by
             },
             status=201
         )

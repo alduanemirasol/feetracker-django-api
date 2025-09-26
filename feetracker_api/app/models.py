@@ -25,6 +25,7 @@ class StudentPaymentHistory(models.Model):
     school_year = models.CharField(max_length=9)
     amount_paid = models.DecimalField(max_digits=8, decimal_places=2)
     payment_date = models.DateTimeField(auto_now_add=True)
+    added_by = models.CharField(max_length=50, null=True, blank=True)
 
 class TreasurerAccount(models.Model):
     username = models.CharField(max_length=50, unique=True)
