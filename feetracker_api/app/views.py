@@ -588,10 +588,7 @@ class StudentPaymentHistoryView(APIView):
         queryset = StudentPaymentHistory.objects.filter(**filters).order_by("-payment_date")
 
         if not queryset.exists():
-            return Response({
-                "payments": [],
-                "data_hash": None
-            }, status=status.HTTP_200_OK)
+            return Response({"payments": [], "data_hash": None}, status=status.HTTP_200_OK)
 
         try:
             student = StudentRecord.objects.get(student_id=student_id)
@@ -608,10 +605,16 @@ class StudentPaymentHistoryView(APIView):
             except:
                 school_year_str = ""
 
-            if obj.payment_date.time() == datetime.time(0, 0):
-                payment_date_str = obj.payment_date.strftime("%B %d, %Y - No time data")
+            # Convert to local time (same as dashboard)
+            local_payment_date = timezone.localtime(obj.payment_date) if obj.payment_date else None
+
+            if local_payment_date:
+                if local_payment_date.time() == datetime.time(0, 0):
+                    payment_date_str = local_payment_date.strftime("%B %d, %Y – No time data")
+                else:
+                    payment_date_str = local_payment_date.strftime("%B %d, %Y – %I:%M %p")
             else:
-                payment_date_str = obj.payment_date.strftime("%B %d, %Y – %I:%M %p")
+                payment_date_str = None
 
             payments.append({
                 "receipt_id": obj.receipt_id,
@@ -622,16 +625,16 @@ class StudentPaymentHistoryView(APIView):
                 "school_year": obj.school_year,
                 "school_year_str": school_year_str,
                 "semester_school_year_str": f"{semester_str} {school_year_str}",
-                "amount_paid": f"+₱{obj.amount_paid}",
-                "amount_paid_plain": f"₱{obj.amount_paid}",
-                "payment_date": obj.payment_date.isoformat() if obj.payment_date else None,
-                "payment_date_str": payment_date_str
+                "amount_paid": f"+₱{obj.amount_paid:.2f}",
+                "amount_paid_plain": f"₱{obj.amount_paid:.2f}",
+                "payment_date": local_payment_date.isoformat() if local_payment_date else None,
+                "payment_date_str": payment_date_str,
+                "added_by": obj.added_by
             })
 
-        response_data = {
-            "payments": payments
-        }
+        response_data = {"payments": payments}
 
+        # Compute hash
         response_str = json.dumps(response_data, sort_keys=True)
         data_hash = hashlib.sha256(response_str.encode()).hexdigest()
         response_data["data_hash"] = data_hash
