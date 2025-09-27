@@ -1,6 +1,0 @@
-Django==5.2.6
-djangorestframework==3.16.1
-djangorestframework_simplejwt==5.5.1
-python-dotenv==1.1.1
-reportlab==4.4.3
-rest_framework_simplejwt==0.0.2
