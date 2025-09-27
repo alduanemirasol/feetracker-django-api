@@ -621,7 +621,7 @@ class StudentPaymentHistoryView(APIView):
                 "student_id": obj.student_id,
                 "full_name": full_name,
                 "semester": obj.semester,
-                "semester_str": semester_str,
+                "semester_str": semester_str, 
                 "school_year": obj.school_year,
                 "school_year_str": school_year_str,
                 "semester_school_year_str": f"{semester_str} {school_year_str}",
@@ -629,7 +629,7 @@ class StudentPaymentHistoryView(APIView):
                 "amount_paid_plain": f"₱{obj.amount_paid:.2f}",
                 "payment_date": local_payment_date.isoformat() if local_payment_date else None,
                 "payment_date_str": payment_date_str,
-                "added_by": obj.added_by
+                "added_by": obj.added_by if obj.added_by else "Not specified"
             })
 
         response_data = {"payments": payments}
