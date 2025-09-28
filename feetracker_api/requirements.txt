@@ -4,3 +4,5 @@ djangorestframework_simplejwt==5.5.1
 python-dotenv==1.1.1
 reportlab==4.4.3
 rest_framework_simplejwt==0.0.2
+django-cors-headers==4.0.0
+mysqlclient==2.2.0
