@@ -78,3 +78,7 @@ class AdminRegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     must_change_password = serializers.BooleanField(default=False)
+
+class AdminSetNewPasswordSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    new_password = serializers.CharField(write_only=True)

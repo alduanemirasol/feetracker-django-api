@@ -35,7 +35,8 @@ from .serializers import (
     TreasurerSetNewPasswordSerializer,
     TreasurerAddPaymentSerializer,
     AdminLoginSerializer,
-    AdminRegisterSerializer
+    AdminRegisterSerializer,
+    AdminSetNewPasswordSerializer
 )
 
 # Global variables to track last receipt and deleted IDs
@@ -1166,3 +1167,28 @@ class AdminCreateAdminAccountView(APIView):
         )
 
         return Response({'detail': 'Admin account successfully created.'}, status=status.HTTP_201_CREATED)
+    
+# Admin Set New Password View
+class AdminSetNewPasswordView(APIView):
+    def post(self, request):
+        serializer = AdminSetNewPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        username = serializer.validated_data['username']
+        new_password = serializer.validated_data['new_password']
+
+        # Get account
+        try:
+            account = AdminAccount.objects.get(username=username)
+        except AdminAccount.DoesNotExist:
+            return Response({'detail': 'Username not found'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Update password
+        account.password = make_password(new_password)
+        account.must_change_password = False
+        account.save()
+
+        return Response(
+            {'detail': 'Password changed successfully.'},
+            status=status.HTTP_200_OK
+        )

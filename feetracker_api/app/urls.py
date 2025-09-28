@@ -24,7 +24,8 @@ from .views import (
     AdminLoginView,
     AdminCreateStudentAccountView,
     AdminCreateTreasurerAccountView,
-    AdminCreateAdminAccountView
+    AdminCreateAdminAccountView,
+    AdminSetNewPasswordView
 )
 
 urlpatterns = [
@@ -53,4 +54,5 @@ urlpatterns = [
     path('admin/create/student-account/', AdminCreateStudentAccountView.as_view(), name='admin-create-student-account'),
     path('admin/create/treasurer-account/', AdminCreateTreasurerAccountView.as_view(), name='admin-create-treasurer-account'),
     path('admin/create/admin-account/', AdminCreateAdminAccountView.as_view(), name='admin-create-admin-account'),
+    path('admin/set-new-password/', AdminSetNewPasswordView.as_view(), name='admin-set-new-password'),
 ] 
