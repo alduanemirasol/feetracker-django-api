@@ -776,53 +776,30 @@ class TreasurerStudentBalanceView(APIView):
         semester = request.query_params.get('semester')
         school_year = request.query_params.get('school_year')
 
-        response_list = []
-        TOTAL_FEE = Decimal('300.00')
-
-        if student_id:
-            payments_qs = StudentPaymentHistory.objects.filter(student_id=student_id)
-            if semester:
-                payments_qs = payments_qs.filter(semester=semester)
-            if school_year:
-                payments_qs = payments_qs.filter(school_year=school_year)
-
-            total_paid = payments_qs.aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
-            balance = TOTAL_FEE - total_paid
-
-            response_list.append({
-                "student_id": student_id,
-                "total_paid": f"₱{total_paid:,.2f}",
-                "balance": f"₱{balance:,.2f}"
-            })
-        else:
-            payments_qs = StudentPaymentHistory.objects.all()
-            if semester:
-                payments_qs = payments_qs.filter(semester=semester)
-            if school_year:
-                payments_qs = payments_qs.filter(school_year=school_year)
-
-            latest_student_ids = (
-                payments_qs.order_by('-receipt_id')
-                .values_list('student_id', flat=True)
-                .distinct()[:20]
+        if not student_id:
+            return Response(
+                {"data": []},
+                status=400
             )
 
-            if latest_student_ids:
-                payments = payments_qs.filter(student_id__in=latest_student_ids)
-                aggregated = payments.values('student_id').annotate(total_paid=Sum('amount_paid'))
+        TOTAL_FEE = Decimal('300.00')
 
-                for entry in aggregated:
-                    sid = entry['student_id']
-                    total_paid = entry['total_paid'] or Decimal('0.00')
-                    balance = TOTAL_FEE - total_paid
+        payments_qs = StudentPaymentHistory.objects.filter(student_id=student_id)
+        if semester:
+            payments_qs = payments_qs.filter(semester=semester)
+        if school_year:
+            payments_qs = payments_qs.filter(school_year=school_year)
 
-                    response_list.append({
-                        "student_id": sid,
-                        "total_paid": f"₱{total_paid:,.2f}",
-                        "balance": f"₱{balance:,.2f}"
-                    })
+        total_paid = payments_qs.aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+        balance = TOTAL_FEE - total_paid
 
-        return Response({"data": response_list})
+        response_data = [{
+            "student_id": student_id,
+            "total_paid": f"₱{total_paid:,.2f}",
+            "balance": f"₱{balance:,.2f}"
+        }]
+
+        return Response({"data": response_data})
 
 # Treasurer Add Payment View
 class TreasurerAddPaymentView(APIView):
