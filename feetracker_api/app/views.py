@@ -154,13 +154,11 @@ class StudentRegisterView(APIView):
             subject="Your FeeTracker Code",
             message=(
                 f"Hi {full_name},\n\n"
-                f"Thanks for joining FeeTracker! We're happy to have you.\n\n"
-                f"Use this code to set up your account:\n\n"
-                f"🔐 {otp_code}\n\n"
-                f"This code works for 10 minutes only, so use it soon.\n\n"
-                f"If you did not sign up, just ignore this message.\n\n"
-                f"Thanks,\n"
-                f"The FeeTracker Team"
+                f"Welcome to FeeTracker!\n\n"
+                f"Your code is: 🔐 {otp_code}\n\n"
+                f"Valid for 10 minutes only.\n\n"
+                f"If this wasn’t you, ignore this email.\n\n"
+                f"- FeeTracker Team"
             ),
             from_email="noreply@feetracker.com",
             recipient_list=[email],
@@ -265,16 +263,15 @@ class StudentResendOtpView(APIView):
         account.otp_code = otp_code
         account.otp_expiry = otp_expiry
         account.save()
-
+  
         send_mail(
-            subject="FeeTracker – New OTP Code",
+            subject="FeeTracker – OTP Code",
             message=(
                 f"Hi {student.full_name},\n\n"
-                f"A new OTP has been generated for your FeeTracker account.\n\n"
-                f"🔐 OTP Code: {otp_code}\n\n"
-                f"This code expires in 10 minutes.\n\n"
-                f"If you didn’t request this, you can safely ignore it.\n\n"
-                f"— FeeTracker Team"
+                f"Your OTP is: 🔐 {otp_code}\n\n"
+                f"Valid for 10 minutes.\n\n"
+                f"If not requested, ignore this email.\n\n"
+                f"- FeeTracker Team"
             ),
             from_email="noreply@feetracker.com",
             recipient_list=[email],
