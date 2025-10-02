@@ -1170,7 +1170,7 @@ class AdminSetNewPasswordView(APIView):
     
 # Admin List Accounts View
 class AdminListAccountsView(APIView):
-    # permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request, format=None):
         role = request.query_params.get('role')
@@ -1217,9 +1217,21 @@ class AdminDeleteAccountView(APIView):
 
     def post(self, request, account_type, identifier, format=None):
         identifier = identifier.strip()
-
+  
         if account_type == "student":
-            deleted_count, _ = StudentAccount.objects.filter(student__student_id=identifier).delete()
+            try:
+                student_record = StudentRecord.objects.get(student_id=identifier)
+                student_record.delete()
+                return Response(
+                    {"detail": f"Student account and student record '{identifier}' deleted successfully"},
+                    status=status.HTTP_200_OK
+                )
+            except StudentRecord.DoesNotExist:
+                return Response(
+                    {"detail": f"Student record not found: {identifier}"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
         elif account_type == "treasurer":
             deleted_count, _ = TreasurerAccount.objects.filter(username=identifier).delete()
         elif account_type == "admin":
@@ -1227,9 +1239,13 @@ class AdminDeleteAccountView(APIView):
         else:
             return Response({"detail": "Invalid account type."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if deleted_count == 0:
-            return Response({"detail": f"{account_type.capitalize()} account not found: {identifier}"},
-                            status=status.HTTP_404_NOT_FOUND)
-
-        return Response({"detail": f"{account_type.capitalize()} account '{identifier}' deleted successfully"},
-                        status=status.HTTP_200_OK)
+        if account_type in ["treasurer", "admin"]:
+            if deleted_count == 0:
+                return Response(
+                    {"detail": f"{account_type.capitalize()} account not found: {identifier}"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            return Response(
+                {"detail": f"{account_type.capitalize()} account '{identifier}' deleted successfully"},
+                status=status.HTTP_200_OK
+            )
