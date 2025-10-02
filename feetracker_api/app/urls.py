@@ -25,7 +25,9 @@ from .views import (
     AdminCreateStudentAccountView,
     AdminCreateTreasurerAccountView,
     AdminCreateAdminAccountView,
-    AdminSetNewPasswordView
+    AdminSetNewPasswordView,
+    AdminDeleteAccountView,
+    AdminListAccountsView
 )
 
 urlpatterns = [
@@ -55,4 +57,6 @@ urlpatterns = [
     path('admin/create/treasurer-account/', AdminCreateTreasurerAccountView.as_view(), name='admin-create-treasurer-account'),
     path('admin/create/admin-account/', AdminCreateAdminAccountView.as_view(), name='admin-create-admin-account'),
     path('admin/set-new-password/', AdminSetNewPasswordView.as_view(), name='admin-set-new-password'),
+    path('admin/accounts/list/', AdminListAccountsView.as_view(), name='admin_list_accounts'),
+    path('admin/delete/<str:account_type>/<str:identifier>/', AdminDeleteAccountView.as_view(), name='admin_delete_account'),
 ] 

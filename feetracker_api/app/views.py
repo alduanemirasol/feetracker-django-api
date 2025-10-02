@@ -6,6 +6,7 @@ from .authentication import IsStudent, IsTreasurer, IsAdmin
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView 
@@ -1166,3 +1167,69 @@ class AdminSetNewPasswordView(APIView):
             {'detail': 'Password changed successfully.'},
             status=status.HTTP_200_OK
         )
+    
+# Admin List Accounts View
+class AdminListAccountsView(APIView):
+    # permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request, format=None):
+        role = request.query_params.get('role')
+        if not role or role not in ["student", "treasurer", "admin"]:
+            return Response({"detail": "Invalid or missing role parameter."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        results = []
+
+        if role == "student":
+            students = StudentAccount.objects.select_related('student')
+            for s in students:
+                results.append({
+                    "student_id": s.student.student_id,
+                    "email": s.student.email,
+                    "full_name": s.student.full_name,
+                })
+
+        elif role == "treasurer":
+            treasurers = TreasurerAccount.objects.all()
+            for t in treasurers:
+                results.append({
+                    "username": t.username,
+                    "email": t.email,
+                })
+
+        elif role == "admin":
+            admins = AdminAccount.objects.all()
+            for a in admins:
+                results.append({
+                    "username": a.username,
+                    "email": a.email,
+                })
+
+        # Pagination
+        paginator = PageNumberPagination()
+        paginator.page_size = 10
+        paginated_results = paginator.paginate_queryset(results, request)
+        return paginator.get_paginated_response(paginated_results)
+
+# Admin Delete Account View
+class AdminDeleteAccountView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request, account_type, identifier, format=None):
+        identifier = identifier.strip()
+
+        if account_type == "student":
+            deleted_count, _ = StudentAccount.objects.filter(student__student_id=identifier).delete()
+        elif account_type == "treasurer":
+            deleted_count, _ = TreasurerAccount.objects.filter(username=identifier).delete()
+        elif account_type == "admin":
+            deleted_count, _ = AdminAccount.objects.filter(username=identifier).delete()
+        else:
+            return Response({"detail": "Invalid account type."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if deleted_count == 0:
+            return Response({"detail": f"{account_type.capitalize()} account not found: {identifier}"},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        return Response({"detail": f"{account_type.capitalize()} account '{identifier}' deleted successfully"},
+                        status=status.HTTP_200_OK)
